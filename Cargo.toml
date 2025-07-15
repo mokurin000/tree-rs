@@ -1,0 +1,21 @@
+[package]
+name = "tree-rs"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+compio = { version = "0.15.0", default-features = false, features = [
+    "runtime",
+    "macros",
+] }
+
+[[bin]]
+name = "tree"
+path = "src/main.rs"
+
+[profile.release]
+lto = true
+strip = true
+opt-level = "s"
+codegen-units = 1
+panic = "abort"
