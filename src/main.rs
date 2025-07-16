@@ -15,7 +15,8 @@ fn visit_dirs(dirpath: impl AsRef<Path>, out: &mut impl Write) -> Result<(), Box
 
     for entry in results.flatten() {
         let meta = entry.metadata()?;
-        let path = entry.path();
+        let name = entry.file_name();
+        let path = path.join(&name);
 
         if meta.is_dir() {
             visit_dirs(path, out)?;
@@ -23,7 +24,6 @@ fn visit_dirs(dirpath: impl AsRef<Path>, out: &mut impl Write) -> Result<(), Box
         }
 
         let length = meta.len();
-        let name = entry.file_name();
         let name = name.to_string_lossy();
         match &*name {
             "tree.exe" | "tree.csv" => continue,
