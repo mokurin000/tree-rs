@@ -30,7 +30,7 @@ fn visit_dirs(dirpath: impl AsRef<Path>, out: &mut impl Write) -> Result<(), Box
             _ => (),
         }
 
-        out.write_fmt(format_args!("{name},{length}\n"))?;
+        out.write_fmt(format_args!("{},{length}\n", path.to_string_lossy()))?;
     }
 
     Ok(())
