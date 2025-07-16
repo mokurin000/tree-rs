@@ -1,57 +1,36 @@
-use std::{error::Error, fmt::Write, fs::read_dir, path::Path};
+use std::{error::Error, fmt::Write, fs, path::Path};
 
-use compio::{fs, runtime::spawn_blocking};
-use futures_util::{StreamExt, stream};
-
-#[compio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> Result<(), Box<dyn Error>> {
     let mut output = String::new();
-    let cpu_count = num_cpus::get();
-    visit_dirs(".", &mut output, cpu_count).await?;
+    visit_dirs(".", &mut output)?;
 
-    _ = fs::write("./tree.csv", output.replace("\\", "/")).await;
+    _ = fs::write("./tree.csv", output.replace("\\", "/"));
     Ok(())
 }
 
-async fn visit_dirs(
-    path: impl AsRef<Path>,
-    out: &mut impl Write,
-    cpu_count: usize,
-) -> Result<(), Box<dyn Error>> {
-    let path = path.as_ref();
-    let path_str = path.to_string_lossy();
+fn visit_dirs(dirpath: impl AsRef<Path>, out: &mut impl Write) -> Result<(), Box<dyn Error>> {
+    let path = dirpath.as_ref();
 
-    match path_str.as_ref() {
-        "tree.csv" | "tree.exe" => {
-            return Ok(());
+    let results = fs::read_dir(path)?;
+
+    for entry in results.flatten() {
+        let meta = entry.metadata()?;
+        let path = entry.path();
+
+        if meta.is_dir() {
+            visit_dirs(path, out)?;
+            continue;
         }
-        _ => (),
-    }
 
-    let Ok(meta) = fs::metadata(path).await else {
-        return Ok(());
-    };
+        let length = meta.len();
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+        match &*name {
+            "tree.exe" | "tree.csv" => continue,
+            _ => (),
+        }
 
-    if meta.is_dir() {
-        let path = path.to_path_buf();
-        let results = spawn_blocking(move || read_dir(path))
-            .await
-            .unwrap()?
-            .flatten()
-            .map(|e| e.path());
-        let new = stream::iter(results)
-            .map(async |path| {
-                let mut out = String::new();
-                _ = visit_dirs(path, &mut out, cpu_count).await;
-                out
-            })
-            .buffer_unordered(cpu_count)
-            .collect::<String>()
-            .await;
-        out.write_str(&new)?;
-    } else {
-        let file_size = meta.len();
-        out.write_fmt(format_args!("{path_str},{file_size}\n"))?;
+        out.write_fmt(format_args!("{name},{length}\n"))?;
     }
 
     Ok(())
